@@ -12,30 +12,51 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
-public class WorkerManager {
+public class ResourceGatheringManager {
 
    Queue<BaseLocation> baseLocations = new LinkedList<>(BWTA.getBaseLocations());
-   private List<Unit> workers;
    private List<Unit> gasWorkers;
    private List<Unit> mineralWorkers;
    private List<Unit> scoutingWorkers;
+   private List<Unit> minerals;
    private Game theGame;
    //Somehow the WorkerManager needs to do the crucial task of balance gas and mineral production
-   private List<Unit> bases;
+   private Unit base;
    private int workerTicker = 0;
 
-   public WorkerManager(Game aGame) {
+   public ResourceGatheringManager(Game aGame) {
       theGame = aGame;
-      workers = new ArrayList<>();
       gasWorkers = new ArrayList<>();
       mineralWorkers = new ArrayList<>();
       scoutingWorkers = new ArrayList<>();
-      bases = new ArrayList<>();
+      minerals = new ArrayList<>();
+      aGame.self().getUnits().forEach(this::addNewBase);
+      aGame.neutral().getUnits().forEach(this::addNewMineralPatch);
       System.out.println("Finished creating worker manager");
-      //      aGame.self().getUnits().forEach(this::addNewWorker);
+   }
+
+   private void addNewBase(Unit aUnit) {
+      if(aUnit.getType() == UnitType.Terran_Command_Center) {
+         base = aUnit;
+      }
+   }
+
+
+   public void addNewMineralPatch(Unit aUnit) {
+      if(minerals.contains(aUnit)) {
+         return;
+      }
+//      System.out.println( "Unit type:" + aUnit.getType() + " and distance: " + aUnit.getDistance(base));
+      if(aUnit.getType().isMineralField() && aUnit.getDistance(base) < 700) {
+         System.out.println("Adding new mineral patch");
+         minerals.add(aUnit);
+      }
    }
 
    public void addNewWorker(Unit aUnit) {
+      if(mineralWorkers.contains(aUnit) || scoutingWorkers.contains(aUnit) || gasWorkers.contains(aUnit)) {
+         return;
+      }
       System.out.println("Adding new worker");
       if(aUnit.isIdle() && aUnit.getType().isWorker()) {
          if(shouldCollectGas()) {
@@ -45,10 +66,6 @@ public class WorkerManager {
          }else {
             addNewScouter(aUnit);
          }
-         workers.add(aUnit);
-      }
-      if(aUnit.getType() == UnitType.Terran_Command_Center) {
-         bases.add(aUnit);
       }
    }
 
@@ -60,17 +77,15 @@ public class WorkerManager {
       return false;
    }
 
+   private int whichMineralToUse = 0;
+   private int numberOfMiners = 0;
    private void addNewMiner(Unit aNewWorker) {
-      Unit closestMineral = null;
-      for(Unit neutralUnit : theGame.neutral().getUnits()) {
-         if(neutralUnit.getType().isMineralField()) {
-            if(closestMineral == null || aNewWorker.getDistance(neutralUnit) < aNewWorker.getDistance(closestMineral)) {
-               closestMineral = neutralUnit;
-            }
-         }
-      }
+      System.out.println("Number of detected minerals" + minerals.size());
+      Unit closestMineral = minerals.get(whichMineralToUse);
+      whichMineralToUse = (whichMineralToUse >= minerals.size()) ? 0 : whichMineralToUse + 1;
+
       if(closestMineral != null) {
-         System.out.println("Gather minerals");
+         System.out.println("Gather minerals: " + ++numberOfMiners);
          aNewWorker.gather(closestMineral);
       }
    }
@@ -86,11 +101,11 @@ public class WorkerManager {
 
    public Position getNextBaseLocation() {
       BaseLocation remove = baseLocations.remove();
-//      while(remove != null && remove.getPosition().equals(bases.get(0).getPosition())
-//            && !remove.isStartLocation()) {
-//         System.out.println("Getting new base to scout");
-//         remove = baseLocations.remove();
-//      }
+      //      while(remove != null && remove.getPosition().equals(base.get(0).getPosition())
+      //            && !remove.isStartLocation()) {
+      //         System.out.println("Getting new base to scout");
+      //         remove = baseLocations.remove();
+      //      }
       return remove.getPosition();
    }
 }
