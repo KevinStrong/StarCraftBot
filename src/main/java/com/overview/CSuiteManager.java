@@ -3,7 +3,7 @@ package com.overview;
 import bwapi.*;
 import bwta.BWTA;
 import bwta.BaseLocation;
-import com.overview.managers.WorkerManager;
+import com.overview.managers.ResourceGatheringManager;
 
 public class CSuiteManager extends DefaultBWListener {
 
@@ -11,26 +11,24 @@ public class CSuiteManager extends DefaultBWListener {
    private Game game;
    private Player self;
 
-   public void run() {
+   private void run() {
       mirror.getModule().setEventListener(this);
       mirror.startGame();
    }
 
-   WorkerManager workerManager;
+   private ResourceGatheringManager resourceGatheringManager;
 
    @Override
    public void onStart() {
       game = mirror.getGame();
       self = game.self();
 
-
       //Use BWTA to analyze map
       //This may take a few minutes if the map is processed first time!
       analyzeMapData();
-//      printMapData();
+      //      printMapData();
 
-
-      workerManager = new WorkerManager(game);
+      resourceGatheringManager = new ResourceGatheringManager(game);
 
 
    }
@@ -53,6 +51,9 @@ public class CSuiteManager extends DefaultBWListener {
       System.out.println("Map data ready");
    }
 
+
+   private long frameNumber = 0;
+
    @Override
    public void onFrame() {
       //game.setTextSize(10);
@@ -60,35 +61,29 @@ public class CSuiteManager extends DefaultBWListener {
 
       StringBuilder units = new StringBuilder("My units:\n");
 
-      //iterate through my units
       for(Unit myUnit : self.getUnits()) {
-         units.append(myUnit.getType()).append(" ").append(myUnit.getTilePosition()).append("\n");
-
-         //if there's enough minerals, train an SCV
          if(myUnit.getType() == UnitType.Terran_Command_Center && self.minerals() >= 50) {
             myUnit.train(UnitType.Terran_SCV);
          }
-
-         //Display the location of all your workers.
-//         if(myUnit.getType().isWorker() && myUnit.isIdle()) {
-//            game.drawTextMap(myUnit.getPosition().getX(),myUnit.getPosition().getY(),
-//                  "TilePos: " + myUnit.getTilePosition().toString() + " Pos: " + myUnit.getPosition().toString());
-//         }
+         units.append(myUnit.getType()).append(" ").append(myUnit.getTilePosition()).append("\n");
       }
-
-      //draw my units on screen
       game.drawTextScreen(10,25,units.toString());
    }
 
+   //This happens when the unit training starts not when it is actually created!
    @Override
-   public void onUnitCreate(Unit unit) {
+   public void onUnitComplete(Unit unit) {
+//      System.out.println("on unit create");
       if(unit.getType() != UnitType.Resource_Mineral_Field && unit.getType() != UnitType.Resource_Vespene_Geyser) {
          System.out.println("New unit discovered " + unit.getType());
       }
-      if(unit.getType().isWorker()) {
-         workerManager.addNewWorker(unit);
+      if(unit.getType().isWorker() ) {
+         System.out.println("calling new worker from onUnitCreate");
+         resourceGatheringManager.addNewWorker(unit);
       }
    }
+
+
 
    public static void main(String[] args) {
       new CSuiteManager().run();

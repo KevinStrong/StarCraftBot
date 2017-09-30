@@ -14,18 +14,15 @@ import java.util.Queue;
 
 public class ResourceGatheringManager {
 
-   Queue<BaseLocation> baseLocations = new LinkedList<>(BWTA.getBaseLocations());
+   private Queue<BaseLocation> baseLocations = new LinkedList<>(BWTA.getBaseLocations());
    private List<Unit> gasWorkers;
    private List<Unit> mineralWorkers;
    private List<Unit> scoutingWorkers;
    private List<Unit> minerals;
-   private Game theGame;
    //Somehow the WorkerManager needs to do the crucial task of balance gas and mineral production
    private Unit base;
-   private int workerTicker = 0;
 
    public ResourceGatheringManager(Game aGame) {
-      theGame = aGame;
       gasWorkers = new ArrayList<>();
       mineralWorkers = new ArrayList<>();
       scoutingWorkers = new ArrayList<>();
@@ -42,7 +39,7 @@ public class ResourceGatheringManager {
    }
 
 
-   public void addNewMineralPatch(Unit aUnit) {
+   private void addNewMineralPatch(Unit aUnit) {
       if(minerals.contains(aUnit)) {
          return;
       }
@@ -69,23 +66,21 @@ public class ResourceGatheringManager {
       }
    }
 
+   private int sendAScout = 0;
    private boolean shouldCollectMinerals() {
-      return workerTicker++ % 5 != 0;
+      return sendAScout++ % 5 != 0;
    }
 
    private boolean shouldCollectGas() {
       return false;
    }
 
-   private int whichMineralToUse = 0;
-   private int numberOfMiners = 0;
    private void addNewMiner(Unit aNewWorker) {
-      System.out.println("Number of detected minerals" + minerals.size());
-      Unit closestMineral = minerals.get(whichMineralToUse);
-      whichMineralToUse = (whichMineralToUse >= minerals.size()) ? 0 : whichMineralToUse + 1;
+      mineralWorkers.add(aNewWorker);
+      Unit closestMineral = minerals.get(mineralWorkers.size() % minerals.size());
 
       if(closestMineral != null) {
-         System.out.println("Gather minerals: " + ++numberOfMiners);
+         System.out.println("Gather minerals: " + mineralWorkers.size());
          aNewWorker.gather(closestMineral);
       }
    }
@@ -95,17 +90,22 @@ public class ResourceGatheringManager {
    }
 
    private void addNewScouter(Unit aUnit) {
-      System.out.println("Having worker scout");
-      aUnit.move(getNextBaseLocation());
+      Position nextBaseLocation = getNextBaseLocation();
+      if(nextBaseLocation != null) {
+         System.out.println("Having worker scout");
+         aUnit.move(nextBaseLocation);
+      }else {
+         addNewWorker( aUnit );
+      }
    }
 
-   public Position getNextBaseLocation() {
+   private Position getNextBaseLocation() {
       BaseLocation remove = baseLocations.remove();
-      //      while(remove != null && remove.getPosition().equals(base.get(0).getPosition())
-      //            && !remove.isStartLocation()) {
-      //         System.out.println("Getting new base to scout");
-      //         remove = baseLocations.remove();
-      //      }
-      return remove.getPosition();
+            while(remove != null && !remove.isStartLocation()) {
+               System.out.println("Getting new base to scout");
+               remove = baseLocations.remove();
+            }
+      return remove != null ? remove.getPosition() : null;
    }
+
 }
